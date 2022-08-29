@@ -19,7 +19,7 @@ library(ggplot2)
 lataa_vuosi <- function(vuosi = 2022) { readxl::read_xlsx(paste0('data/metsakeskus/Hakkuuaikomukset_',vuosi,'.xlsx')) %>% 
     
   #ilmoitukset raportoitu viikottain muutetaan `date` sarake sen viikon maanantaiksi 
-  mutate(date = as.Date(paste(vuosi,(viikko),1),'%Y %U %u')) %>% 
+  mutate(date = as.Date(paste(vuosi,(viikko-1),1),'%Y %U %u')) %>% 
     
   #poistetaan turhat sarakkeet
   select(-c(vuosi, kuukausi, viikko)) %>% 
@@ -33,6 +33,33 @@ hakkuuilmo_2022 <- lataa_vuosi(vuosi = 2022)
 ```
 
 
+```{r aluekaytto22}
+
+hakkuuilmo_2022 %>% 
+  filter(aluetaso == 4) %>% 
+  ggplot(aes(x = mv_ha, y = yhteensa_e))+
+  geom_point(aes(colour = hakkuutapa))+
+  facet_grid(cols = vars(factor(yksityismaa)),
+             rows = vars(aluenimi))
+
+```
+
+```{r vuodenaikavaiht22}
+
+hakkuuilmo_2022 %>% 
+  filter(aluetaso == 4,
+         hakkuutapa == 'Uudistaminen') %>% 
+  ggplot(aes(x = date, 
+             y = yhteensa_m3
+             )
+         )+
+  geom_line(aes(colour = factor(aluenimi)
+                )
+            )+
+  facet_grid(rows = vars(factor(yksityismaa)))
+```
+
+
 # Vuosi 2021
 
 ```{r lataa21}
@@ -43,7 +70,82 @@ hakkuuilmo_2021 %>%
   ggplot(aes(x = mv_ha, y = yhteensa_e))+
   geom_point(aes(colour = hakkuutapa))+
   facet_grid(cols = vars(factor(yksityismaa)),
-             rows = vars(aluenumero))
+             rows = vars(aluenimi))
   
 ```
 
+```{r vuosivaiht21}
+
+hakkuuilmo_2021%>% 
+  filter(aluetaso == 4,
+         hakkuutapa == 'Uudistaminen') %>% 
+  ggplot(aes(x = date, 
+             y = yhteensa_m3
+             )
+         )+
+  geom_line(aes(colour = factor(aluenimi)
+                )
+            )+
+  facet_grid(rows = vars(factor(yksityismaa)))
+
+
+```
+
+
+# Vuosi 2020
+
+```{r lataa20}
+hakkuuilmo_2020 <- lataa_vuosi(vuosi = 2020) 
+
+hakkuuilmo_2020 %>% 
+  filter(aluetaso == 4) %>% 
+  ggplot(aes(x = mv_ha, y = yhteensa_e))+
+  geom_point(aes(colour = hakkuutapa))+
+  facet_grid(cols = vars(factor(yksityismaa)),
+             rows = vars(aluenimi))
+
+hakkuuilmo_2020 %>% 
+  filter(aluetaso == 4,
+         hakkuutapa == 'Uudistaminen') %>% 
+  ggplot(aes(x = date, 
+             y = yhteensa_m3
+             )
+         )+
+  geom_line(aes(colour = factor(aluenimi)
+                )
+            )+
+  facet_grid(rows = vars(factor(yksityismaa)))+
+  labs(x = NULL, y = 'uudistuhakkuita m3', title = )
+  
+```
+# Vuosi 2019
+
+```{r lataa19}
+
+hakkuuilmo_2019 <- lataa_vuosi(vuosi = 2019) 
+
+hakkuuilmo_2019 %>% 
+  filter(aluetaso == 4) %>% 
+  ggplot(aes(x = mv_ha, y = yhteensa_e))+
+  geom_point(aes(colour = hakkuutapa))+
+  facet_grid(cols = vars(factor(yksityismaa)),
+             rows = vars(aluenimi))
+```
+ 
+```{r vuosivaiht19}
+
+hakkuuilmo_2019%>% 
+  filter(aluetaso == 4,
+         hakkuutapa == 'Uudistaminen') %>% 
+  ggplot(aes(x = date, 
+             y = yhteensa_m3
+             )
+         )+
+  geom_line(aes(colour = factor(aluenimi)
+                )
+            )+
+  facet_grid(rows = vars(factor(yksityismaa)))
+
+```
+ 
+ 
