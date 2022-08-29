@@ -1,0 +1,49 @@
+---
+title: "Hakkuuilmotukset EDA"
+output: html_notebook
+---
+
+```{r setup, warning=FALSE}
+
+library(tidyverse)
+library(ggplot2)
+
+```
+
+# Vuosi 2022
+
+## ladataan tilasto
+
+```{r lataa22}
+
+lataa_vuosi <- function(vuosi = 2022) { readxl::read_xlsx(paste0('data/metsakeskus/Hakkuuaikomukset_',vuosi,'.xlsx')) %>% 
+    
+  #ilmoitukset raportoitu viikottain muutetaan `date` sarake sen viikon maanantaiksi 
+  mutate(date = as.Date(paste(vuosi,(viikko),1),'%Y %U %u')) %>% 
+    
+  #poistetaan turhat sarakkeet
+  select(-c(vuosi, kuukausi, viikko)) %>% 
+    
+  #liitetään pvm ensimmäiseksi sarakkeeksi
+  relocate(date)
+}
+
+hakkuuilmo_2022 <- lataa_vuosi(vuosi = 2022) 
+
+```
+
+
+# Vuosi 2021
+
+```{r lataa21}
+hakkuuilmo_2021 <- lataa_vuosi(vuosi = 2021) 
+
+hakkuuilmo_2021 %>% 
+  filter(aluetaso == 4) %>% 
+  ggplot(aes(x = mv_ha, y = yhteensa_e))+
+  geom_point(aes(colour = hakkuutapa))+
+  facet_grid(cols = vars(factor(yksityismaa)),
+             rows = vars(aluenumero))
+  
+```
+
