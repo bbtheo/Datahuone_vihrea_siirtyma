@@ -15,11 +15,11 @@ library(pxweb)
 
 ```
 
-
 # Maatalouseläinten lkm läpi vuosien
 
 Alla käyty Luke keräämien julkisten tilastojen tunnuslukuja. Lisätietoja on saatavilla [laatuselosteesta](https://www.luke.fi/fi/tilastot/kotielainten-lukumaara/kotielainten-lukumaara-tilaston-laatuseloste).
 
+# Ladataan tilastot LUKE:n sivuilta.
 
 ```{r}
 #| label: load-karja
@@ -30,3 +30,4 @@ d$variables
 
 ```
 
+In progress...

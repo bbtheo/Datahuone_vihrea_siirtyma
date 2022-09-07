@@ -1,0 +1,36 @@
+---
+title: "Maatalouseläinten lkm"
+format: html
+editor: visual
+---
+
+```{r}
+#| label: setup
+#| include: false
+
+library(tidyverse)
+library(lubridate)
+library(ggplot2)
+library(pxweb)
+
+```
+
+
+# Maatalouseläinten lkm läpi vuosien
+
+Alla käyty Luke keräämien julkisten tilastojen tunnuslukuja. Lisätietoja on saatavilla [laatuselosteesta](https://www.luke.fi/fi/tilastot/kotielainten-lukumaara/kotielainten-lukumaara-tilaston-laatuseloste).
+
+# Ladataan tilastot LUKE:n sivuilta.
+
+
+```{r}
+#| label: load-karja
+
+d <- pxweb_get("https://statdb.luke.fi:443/PXWeb/api/v1/fi/LUKE/02 Maatalous/04 Tuotanto/12 Kotielainten lukumaara/01_Kotielainten_lukumaara_kevaalla_ELY.px")
+
+d$variables
+
+```
+
+
+In progress...
