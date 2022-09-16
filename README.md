@@ -1,3 +1,1 @@
-# Datahuoneen Vihreän siirtymän huone
-
-Tavoitteena 
+# Datahuoneen Vihreän siirtymän huone 
