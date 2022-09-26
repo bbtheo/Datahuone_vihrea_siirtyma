@@ -1,0 +1,90 @@
+---
+title: "Sateliitti EDA"
+author: "Theo"
+format: html
+editor: visual
+---
+
+
+## Datan lataaminen
+
+```{r}
+
+library(tiff)
+library(lubridate)
+library(tidyverse)
+library(ggplot2)
+library(raster)
+
+```
+
+
+## Hiilimonoksidi
+
+Kokeillaan ensiksi heinäkuun 2022 Hiilimonoksidi arvoja:
+
+```{r}
+
+r <- raster::raster("data/emissions/co/co_2022-07.tif")
+plot(r, 
+     breaks = c(0.02, 0.025, 0.027, 0.03), 
+     col = terrain.colors(4))
+```
+
+Luodaan geneerinen funktio jonka avulla voimme ladata
+
+```{r}
+
+read_satelite_data <- function(month = 08,
+                               year = 2021, 
+                               type = 'co', 
+                               return_as_tibble = T){
+  
+  if(month < 10) {
+    month <- paste0("0", month)
+  }
+  
+  path <- paste0("data/emissions/",type,"/",type,"_",year,"-",month,".tif")
+  try(r <- raster::raster(path))
+  
+  if(!return_as_tibble){
+    return(r)
+  }
+  
+  as_tibble(rasterToPoints(r)) %>% 
+    mutate(date = lubridate::make_date(year, month, 1)) %>% 
+    relocate(date)
+}
+
+read_satelite_data()
+
+```
+
+Kootaan kaikki vuoden arvot yhteen tauluun
+
+```{r}
+
+data_2020 <- bind_rows(lapply(c(7:11), read_satelite_data, year = 2020))
+data_2021 <- bind_rows(lapply(c(1:11), read_satelite_data, year = 2021))
+data_2022 <- bind_rows(lapply(c(1:9), read_satelite_data, year = 2022))
+
+
+bind_rows(data_2020,data_2021,data_2022) %>% 
+  group_by(date) %>% 
+  summarise(mean = quantile(CO_column_number_density, probs = 0.50),
+          lower_95 = quantile(CO_column_number_density, probs = 0.005),
+          upper_95 = quantile(CO_column_number_density, probs = 0.995),
+          lower_50 = quantile(CO_column_number_density, probs = 0.05),
+          upper_50 = quantile(CO_column_number_density, probs = 0.95)) %>% 
+  ggplot(aes(x = date))+
+  geom_ribbon(aes(ymin = lower_95, ymax = upper_95), alpha = 0.5)+
+  geom_ribbon(aes(ymin = lower_50, ymax = upper_50), alpha = 0.75)+
+  geom_line(aes(y = mean))+
+  labs(x = NULL, y = 'CO')
+
+  
+  
+  
+
+```
+

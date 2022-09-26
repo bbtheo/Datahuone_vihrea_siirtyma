@@ -6,6 +6,7 @@
 #remotes::install_github("ropengov/fmi2")
 
 library(tidyverse)
+library(lubridate)
 
 
 station_data <- fmi2::fmi_stations()
@@ -37,7 +38,7 @@ leaflet::leaflet(station_data) %>%
 
 # pitää muuttaa näistä oma funktio
 
-start_date <- lubridate::ymd("2022.09.01")
+start_date <- lubridate::ymd("2022.02.01")
 end_date <- lubridate::ymd("2022.09.08")
 
 fmi_stations_data_daily <- function(fmisid, start_date, end_date){
@@ -94,28 +95,30 @@ fmi_data <- function(start_date, end_date, station_data = NULL, daily = T){
   
   if(daily){
     
-    if(end_date - start_date > lubridate::year(1)){
+    
+    if(lubridate::ymd(end_date) - lubridate::ymd(start_date) > lubridate::dyears(1)){
       Print("too long of a time")
       break
     }
     
-    station_data_list <- lapply(station_data, fmi_stations_data_daily, 
-                                start_date = start_date, 
-                                end_date = end_date)
+    
+    station_data_list <- pbapply::pblapply(station_data,
+                                           fmi_stations_data_daily, 
+                                           start_date = start_date, 
+                                           end_date = end_date)
     
   } else {
     
-    if(end_date - start_date > lubridate::month(1)){
+    if(lubridate::ymd(end_date) - lubridate::ymd(start_date) > lubridate::dmonths(1)){
       Print("too long of a time")
       break
     }
     
-    station_data_list <- lapply(station_data, fmi_stations_data_hourly, 
-                                start_date = start_date, 
-                                end_date = end_date)
+    station_data_list <- pbapply::pblapply(station_data, 
+                                           fmi_stations_data_hourly, 
+                                           start_date = start_date,
+                                           end_date = end_date)
   }
-  
-  
   
   elimination <- sapply(station_data_list, is_tibble)
   data <- bind_rows(station_data_list[elimination])
@@ -131,16 +134,26 @@ fmi_data <- function(start_date, end_date, station_data = NULL, daily = T){
 
 # Nearest station --------------------------------------------------------------
 
-dist_mat <- station_data %>% 
-  select(lat, lon) %>% 
-  dist(upper = F)
-
-dist_mat <- as.matrix(dist_mat)  
-colnames(dist_mat) <- station_data$fmisid
-rownames(dist_mat) <- station_data$fmisid
-
-diag(dist_mat) <- NA # jotta asema itse ei ole lähin
-
+return_dist_mat <- function(){
+  
+  station_data <-  fmi2::fmi_stations() %>% 
+    filter(type %in% c("Automaattinen sääasema",
+                       "IL:n hallinnoima lentosääasema",
+                       "Sadeasema"))
+  
+  dist_mat <- station_data %>% 
+    select(lat, lon) %>% 
+    dist(upper = F)
+  
+  dist_mat <- as.matrix(dist_mat)  
+  colnames(dist_mat) <- station_data$fmisid
+  rownames(dist_mat) <- station_data$fmisid
+  
+  diag(dist_mat) <- NA
+  
+  dist_mat
+  
+}
 
 nearest_station <- function(station_id, filtered = NULL, dist_mat = NULL){
   #Function that returns the closest station id
@@ -180,7 +193,7 @@ nearest_station("101784")
 
 station_data
 
-neighbours <- vuosi_data %>% 
+neighbours <- daily_data %>% 
   distinct(fmisid) %>% 
   rowwise() %>% 
   mutate(nearest = nearest_station(fmisid, 
@@ -197,9 +210,111 @@ neighbours <- vuosi_data %>%
          nearest_5 = nearest_station(fmisid,
                                      c(nearest, nearest_2, nearest_3, nearest_4), 
                                      dist_mat = dist_mat)
-         )
+         ) %>% 
+  ungroup()
 
 
 vuosi_data %>% left_join(neighbours)
 
 daily_data <- fmi_data("2022-09-01", "2022-09-02", daily = F)
+
+test_data <- daily_data %>% 
+  filter(time == min(time))
+
+
+tested <- coalesce(test_data %>% 
+           arrange(fmisid),
+
+  left_join(test_data %>% 
+              select(fmisid),
+  
+  neighbours %>% 
+    select(fmisid, nearest) %>% 
+    right_join(test_data, by = c('nearest'='fmisid')) %>% 
+    select(-nearest) 
+  ) %>% 
+  
+    arrange(fmisid)
+) 
+
+sum(is.na(test_data))
+
+sum(is.na(tested))
+sum(is.na(tested_2))
+sum(is.na(tested_3))
+sum(is.na(tested_4))
+sum(is.na(tested_5))
+
+
+coalesce_with_neighbour <- function(test_data, 
+                                    column = 'nearest', 
+                                    neighbours = NULL, 
+                                    dist_mat = NULL){
+  
+  if(is.null(neighbours)){
+    
+    if(is.null(dist_mat)){
+      
+      dist_mat <- return_dist_mat()
+      
+    }
+    
+    neighbours <- test_data %>% 
+      distinct(fmisid) %>% 
+      rowwise() %>% 
+      mutate(nearest = nearest_station(fmisid, 
+                                       dist_mat = dist_mat),
+             nearest_2 = nearest_station(fmisid, 
+                                         nearest, 
+                                         dist_mat = dist_mat),
+             nearest_3 = nearest_station(fmisid,
+                                         c(nearest, nearest_2), 
+                                         dist_mat = dist_mat),
+             nearest_4 = nearest_station(fmisid,
+                                         c(nearest, nearest_2, nearest_3), 
+                                         dist_mat = dist_mat),
+             nearest_5 = nearest_station(fmisid,
+                                         c(nearest, nearest_2, nearest_3, nearest_4), 
+                                         dist_mat = dist_mat)
+      ) %>% 
+      ungroup()
+  }
+  
+  
+  coalesce(test_data %>% arrange(fmisid, time),
+           
+           left_join(test_data %>% select(fmisid, time),
+                     
+                     neighbours %>% 
+                       select(fmisid, !!column) %>% 
+                       right_join(test_data, 
+                                  by = setNames(c('fmisid'), c(column))) %>% 
+                       select(-!!column),
+                     by = c('fmisid' = 'fmisid',
+                            'time' = 'time')) %>%
+             arrange(fmisid, time)
+           )
+  
+}
+
+
+## lets test this mf -----------------------------------------------------------
+
+data <-  fmi_data("2022-02-01", "2022-09-26")
+
+share_na <- function(data) mean(is.na(data))
+
+data %>% 
+  summarise_all(list(share_na))
+
+start <- Sys.time()
+
+coalesced_3 <- coalesce_with_neighbour(data) %>%
+  coalesce_with_neighbour(column = 'nearest_2') %>% 
+  coalesce_with_neighbour(column = 'nearest_3') 
+
+end <-  Sys.time()
+
+print(end-start)
+
+
